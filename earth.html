@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>UBERNATURAL — Solar System Explorer</title>
+<style>
+:root{font-family:'SF Pro Display','Helvetica Neue',Arial,sans-serif;color:#fff;background:#03030a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#03030a}
+
+.stage{position:fixed;inset:0;overflow:hidden}
+#space,#planet{position:absolute;inset:0;width:100%;height:100%}
+#space{z-index:0}#planet{z-index:1;cursor:pointer}
+
+/* ===== HEADER ===== */
+.header{position:fixed;z-index:10;left:clamp(16px,2vw,30px);right:clamp(16px,2vw,30px);top:clamp(16px,3vh,26px);display:flex;justify-content:space-between;align-items:center;transition:opacity .5s,filter .5s}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.05em;font-size:16px}
+.brand .dot{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#7d9dff 55%,#1a2c66);box-shadow:0 0 22px rgba(120,150,255,.7)}
+.hactions{display:flex;gap:10px;align-items:center}
+.nav{display:flex;height:42px;padding:4px 5px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.07);backdrop-filter:blur(14px);border-radius:999px}
+.nav a{color:#fff;text-decoration:none;padding:8px 18px;border-radius:999px;font-size:14px;line-height:1;display:flex;align-items:center}
+.nav a.active{background:#fff;color:#000}
+.btn-pill{height:42px;padding:0 22px;border:0;border-radius:999px;background:#fff;color:#000;font:600 14px inherit;cursor:pointer}
+
+/* ===== SIDEBAR ===== */
+.sidebar{position:fixed;z-index:10;left:clamp(16px,2vw,30px);top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;transition:opacity .5s,transform .5s}
+.p-item{display:flex;align-items:center;gap:12px;padding:6px 4px;cursor:pointer;opacity:.55;transition:opacity .3s,transform .3s;font-size:15px}
+.p-item:hover{opacity:1;transform:translateX(5px)}
+.p-item.active{opacity:1;font-weight:700;font-size:16px}
+.p-item .mini{width:16px;height:16px;border-radius:50%;flex:none;box-shadow:inset -3px -3px 6px rgba(0,0,0,.55)}
+.p-item.active .mini{width:20px;height:20px;box-shadow:inset -4px -4px 8px rgba(0,0,0,.5),0 0 16px currentColor}
+
+/* ===== CENTER LABEL / HINT ===== */
+.center-hint{position:fixed;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;transition:opacity .4s}
+.center-hint .name{font-family:'Arial Narrow',sans-serif;font-weight:700;font-size:clamp(60px,11vw,150px);line-height:.9;letter-spacing:-.02em;text-shadow:0 0 60px rgba(0,0,0,.6)}
+.center-hint .tap{margin-top:14px;font-size:13px;letter-spacing:.25em;text-transform:uppercase;opacity:.7;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:.85}}
+
+/* ===== FULLSCREEN PLANET PANEL ===== */
+.panel{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .6s ease}
+.panel.is-open{opacity:1;pointer-events:auto}
+.panel-scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,3,12,.9) 0%,rgba(3,3,12,.55) 40%,transparent 70%)}
+.panel-inner{position:absolute;left:clamp(24px,5vw,80px);top:50%;transform:translateY(-50%);max-width:min(560px,80vw);max-height:88vh;overflow-y:auto;scrollbar-width:none}
+.panel-inner::-webkit-scrollbar{display:none}
+.panel-eyebrow{font-size:12px;letter-spacing:.3em;text-transform:uppercase;opacity:.6;margin-bottom:8px}
+.panel-title{font-family:'Arial Narrow',sans-serif;font-weight:700;font-size:clamp(56px,9vw,120px);line-height:.85;margin-bottom:6px}
+.panel-tag{font-size:16px;opacity:.75;margin-bottom:24px;font-style:italic}
+.panel-desc{font-size:15px;line-height:1.7;opacity:.9;margin-bottom:26px;max-width:46ch}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:0 30px;margin-bottom:26px}
+.stat{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.2)}
+.stat b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.55;margin-bottom:4px;font-weight:600}
+.stat span{font-size:16px;font-weight:700}
+.facts-title{font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.55;margin-bottom:12px}
+.fact-row{display:flex;gap:12px;padding:8px 0;font-size:14px;line-height:1.5}
+.fact-row:before{content:'◆';color:var(--pc,#7d9dff);font-size:10px;margin-top:5px}
+.panel-back{margin-top:28px;height:48px;padding:0 28px;border:1px solid rgba(255,255,255,.4);border-radius:999px;background:rgba(255,255,255,.06);color:#fff;font:600 15px inherit;cursor:pointer;backdrop-filter:blur(10px)}
+.panel-back:hover{background:rgba(255,255,255,.15)}
+.panel-nextprev{position:fixed;right:clamp(20px,3vw,44px);top:50%;transform:translateY(-50%);z-index:21;display:flex;flex-direction:column;gap:10px;opacity:0;pointer-events:none;transition:opacity .6s}
+.panel.is-open ~ .panel-nextprev{opacity:1;pointer-events:auto}
+.np-btn{width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.06);color:#fff;font-size:20px;cursor:pointer;backdrop-filter:blur(10px);transition:transform .25s,background .25s}
+.np-btn:hover{background:rgba(255,255,255,.18);transform:scale(1.08)}
+
+/* ===== PRELOADER ===== */
+.preloader{position:fixed;inset:0;z-index:40;background:#000;display:grid;place-items:center;transition:opacity 1s}
+.preloader.is-gone{opacity:0;pointer-events:none}
+.preloader canvas{position:absolute;inset:0}
+.pl-count{position:fixed;z-index:41;left:50%;bottom:clamp(24px,4vh,40px);transform:translateX(-50%);display:flex;align-items:flex-end;gap:5px}
+.pl-count>span:first-child{font-size:66px;font-weight:200}
+.pl-count .pct{font-size:22px;padding-bottom:8px;opacity:.7}
+.pl-count.is-leaving{animation:plo .8s cubic-bezier(.22,1,.36,1) both}
+@keyframes plo{to{opacity:0;filter:blur(8px);transform:translate(-50%,-36px)}}
+.pl-logo{position:fixed;z-index:42;left:50%;top:50%;width:70px;height:70px;transform:translate(-50%,-50%);transition:all 2s cubic-bezier(.16,1,.3,1)}
+.pl-logo .lm{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#7d9dff 55%,#1a2c66);box-shadow:0 0 36px rgba(120,150,255,.7)}
+.pl-logo.is-docked{left:clamp(16px,2vw,30px);top:clamp(16px,3vh,26px);width:32px;height:32px}
+.pl-logo.is-settled{z-index:9}
+
+/* ===== ENTRANCE ANIM ===== */
+body:not(.ready) .header,body:not(.ready) .sidebar,body:not(.ready) .center-hint{opacity:0}
+.ready .header{animation:rd .9s cubic-bezier(.22,1,.36,1) .2s both}
+.ready .sidebar{animation:rs .9s cubic-bezier(.22,1,.36,1) .55s both}
+.ready .center-hint{animation:rc 1s cubic-bezier(.16,1,.3,1) .4s both}
+@keyframes rd{from{opacity:0;filter:blur(8px);transform:translateY(-18px)}to{opacity:1;filter:blur(0);transform:translateY(0)}}
+@keyframes rs{from{opacity:0;transform:translate(-20px,-50%)}to{opacity:1;transform:translate(0,-50%)}}
+@keyframes rc{from{opacity:0;filter:blur(14px);transform:translate(-50%,-40%)}to{opacity:1;filter:blur(0);transform:translate(-50%,-50%)}}
+
+/* ===== when planet open, hide chrome ===== */
+.is-viewing .header,.is-viewing .sidebar,.is-viewing .center-hint{opacity:0;pointer-events:none;filter:blur(6px)}
+
+/* ===== CURSOR ===== */
+@media(hover:hover){html,body,button,a{cursor:none}}
+.cursor{position:fixed;left:0;top:0;z-index:100;pointer-events:none;opacity:0;transition:opacity .2s}
+.cursor.on{opacity:1}
+.c-o{position:absolute;width:36px;height:36px;border:1px solid rgba(255,255,255,.7);border-radius:50%;transform:translate(-50%,-50%);transition:transform .3s}
+.c-d{position:absolute;width:7px;height:7px;background:#fff;border-radius:50%;transform:translate(-50%,-50%)}
+.cursor.enter .c-o{transform:translate(-50%,-50%) scale(1.4);background:rgba(255,255,255,.15)}
+
+/* ===== SHOP ===== */
+.shop{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:radial-gradient(120% 120% at 50% 0%,#151318,#050509 65%);opacity:0;pointer-events:none;transition:opacity .55s;overflow:hidden}
+.shop.is-open{opacity:1;pointer-events:auto}
+.shop-close{position:absolute;top:24px;right:24px;z-index:5;height:42px;padding:0 22px;border:1px solid rgba(255,255,255,.4);border-radius:999px;background:rgba(255,255,255,.08);color:#fff;font:15px inherit;cursor:pointer;backdrop-filter:blur(10px)}
+.shop-inner{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,72px);width:min(1100px,92vw);max-height:92vh;overflow-y:auto;padding:40px 8px;scrollbar-width:none}
+.shop-inner::-webkit-scrollbar{display:none}
+.pcard{position:relative;width:min(400px,80vw);aspect-ratio:1/1.05;margin:auto;border-radius:40px;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 90px rgba(0,0,0,.7);transform-style:preserve-3d;transition:transform .15s}
+.pcard svg{position:absolute;inset:8%;width:84%;height:84%;transform:translateZ(60px)}
+.badge3d{position:absolute;top:18px;left:18px;padding:7px 15px;border-radius:999px;background:#fff;color:#000;font:700 12px inherit;letter-spacing:.1em;text-transform:uppercase;transform:translateZ(90px)}
+.pinfo{display:flex;flex-direction:column;justify-content:center;gap:16px}
+.pe{font-size:12px;letter-spacing:.28em;text-transform:uppercase;opacity:.65}
+.pt{font-family:'Arial Narrow',sans-serif;font-weight:700;font-size:clamp(48px,7vw,88px);line-height:.85}
+.ps{font-size:15px;line-height:1.55;opacity:.8;max-width:44ch}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+.sp{display:grid;grid-template-columns:100px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.25);font-size:14px}
+.buy{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:6px}
+.price{font-size:clamp(28px,3.4vw,40px);font-weight:700}.price s{font-size:.5em;opacity:.5;font-weight:400;margin-left:6px}
+.qty{display:flex;align-items:center;height:46px;border:1px solid rgba(255,255,255,.4);border-radius:999px;overflow:hidden}
+.qty button{width:42px;height:100%;border:0;background:transparent;color:#fff;font-size:20px}
+.qty span{min-width:32px;text-align:center}
+.buynow{height:50px;padding:0 32px;border:0;border-radius:999px;background:#fff;color:#000;font:700 16px inherit;cursor:pointer;transition:transform .25s}
+.buynow:hover{transform:translateY(-2px)}
+.cart-fab{position:fixed;z-index:70;right:24px;bottom:24px;height:52px;padding:0 22px;border:1px solid rgba(255,255,255,.4);border-radius:999px;background:rgba(20,20,24,.85);backdrop-filter:blur(12px);color:#fff;font:15px inherit;cursor:pointer;display:none;align-items:center;gap:10px}
+.cart-fab.on{display:flex}
+.cart-fab .cc{min-width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#000;font:700 12px inherit}
+.drawer{position:fixed;z-index:80;top:0;right:0;height:100%;width:min(390px,94vw);background:rgba(12,11,14,.97);backdrop-filter:blur(18px);border-left:1px solid rgba(255,255,255,.14);transform:translateX(105%);transition:transform .5s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;padding:26px 22px;gap:14px;overflow-y:auto}
+.drawer.on{transform:translateX(0)}
+.drawer h2{font-size:22px}
+.cl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.18);font-size:14px}
+.ct{display:flex;justify-content:space-between;font:700 18px inherit;padding-top:8px}
+.drawer input{height:46px;padding:0 15px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:#fff;font:15px inherit}
+.drawer input::placeholder{color:rgba(255,255,255,.4)}
+.ok{display:none;text-align:center;padding:26px 6px;font-size:15px;line-height:1.6}
+.ok.on{display:block}.ok .big{font-size:44px;display:block;margin-bottom:10px}
+.toast{position:fixed;z-index:90;left:50%;bottom:88px;transform:translate(-50%,20px);padding:13px 26px;border-radius:999px;background:#fff;color:#000;font:700 14px inherit;opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.stars{position:absolute;inset:0;opacity:.6}
+
+@media(max-width:900px){.nav{display:none}.shop-inner{grid-template-columns:1fr;gap:28px;padding-top:80px}.sg{grid-template-columns:1fr}}
+@media(max-width:640px){.sidebar{display:none}.panel-inner{left:18px;right:18px;max-width:none;top:auto;bottom:24px;transform:none;max-height:70vh}.panel-scrim{background:linear-gradient(0deg,rgba(3,3,12,.95) 0%,rgba(3,3,12,.4) 50%,transparent 80%)}.stats{grid-template-columns:1fr 1fr}.panel-nextprev{flex-direction:row;top:auto;bottom:calc(70vh + 36px);right:18px}.pt{font-size:clamp(48px,15vw,70px)}html,body,button,a{cursor:auto}.cursor{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="space"></canvas>
+  <canvas id="planet"></canvas>
+</div>
+
+<div class="preloader" id="preloader"><canvas id="pl-canvas"></canvas></div>
+<div class="pl-logo" id="pl-logo"><div class="lm"></div></div>
+<div class="pl-count" id="pl-count"><span id="pl-val">0</span><span class="pct">%</span></div>
+
+<header class="header">
+  <div class="brand"><span class="dot"></span>UBERNATURAL</div>
+  <div class="hactions">
+    <nav class="nav"><a class="active" href="#">Explore</a><a href="#" id="nav-shop">Shop</a><a href="#">About</a></nav>
+    <button class="btn-pill" id="menu-btn">Shop</button>
+  </div>
+</header>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="center-hint" id="center-hint">
+  <div class="name" id="hint-name">MERCURY</div>
+  <div class="tap">Click the planet to explore →</div>
+</div>
+
+<!-- Fullscreen planet detail panel -->
+<div class="panel" id="panel">
+  <div class="panel-scrim"></div>
+  <div class="panel-inner">
+    <div class="panel-eyebrow" id="p-eyebrow">Planet 01 of 08</div>
+    <div class="panel-title" id="p-title">MERCURY</div>
+    <div class="panel-tag" id="p-tag"></div>
+    <p class="panel-desc" id="p-desc"></p>
+    <div class="stats" id="p-stats"></div>
+    <div class="facts-title">Did you know</div>
+    <div id="p-facts"></div>
+    <button class="panel-back" id="p-back">← Back to Solar System</button>
+  </div>
+</div>
+<div class="panel-nextprev">
+  <button class="np-btn" id="np-prev">↑</button>
+  <button class="np-btn" id="np-next">↓</button>
+</div>
+
+<div class="cursor"><span class="c-o"></span><span class="c-d"></span></div>
+
+<!-- SHOP -->
+<section class="shop" id="shop">
+  <canvas class="stars" id="shop-stars"></canvas>
+  <button class="shop-close" id="shop-close">✕ Close</button>
+  <div class="shop-inner">
+    <div style="display:flex;align-items:center;justify-content:center;perspective:1100px"><div class="pcard" id="pcard">
+      <span class="badge3d">Mission Gear</span>
+      <svg viewBox="0 0 400 420">
+        <defs>
+          <radialGradient id="lg" cx="40%" cy="35%" r="75%"><stop offset="0%" stop-color="#5a7cff"/><stop offset="35%" stop-color="#1a2c66"/><stop offset="70%" stop-color="#0a1030"/><stop offset="100%" stop-color="#04060f"/></radialGradient>
+          <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3c3c42"/><stop offset="30%" stop-color="#1c1c20"/><stop offset="100%" stop-color="#0a0a0c"/></linearGradient>
+          <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fdfdfd"/><stop offset="100%" stop-color="#c9c9cf"/></linearGradient>
+        </defs>
+        <path d="M140 60 C90 150,95 260,150 330" fill="none" stroke="#d7d7dd" stroke-width="7" stroke-dasharray="2 6" stroke-linecap="round"/>
+        <path d="M260 55 C315 140,320 250,262 325" fill="none" stroke="#d7d7dd" stroke-width="7" stroke-dasharray="2 6" stroke-linecap="round"/>
+        <g transform="translate(288,28) rotate(8)"><rect width="66" height="112" rx="20" fill="url(#cg)" stroke="#9a9aa2" stroke-width="2"/><circle cx="33" cy="34" r="18" fill="none" stroke="#8f8f97" stroke-width="3"/><rect x="20" y="66" width="26" height="30" rx="8" fill="none" stroke="#8f8f97" stroke-width="3"/></g>
+        <g transform="translate(300,300) rotate(-14)"><rect width="58" height="86" rx="12" fill="#121216" stroke="#2c2c33" stroke-width="2"/><path d="M6 8 L52 8 L46 70 L12 70 Z" fill="none" stroke="#3a3a42" stroke-width="3"/></g>
+        <g transform="translate(70,300) rotate(10)"><rect width="62" height="96" rx="18" fill="#101014" stroke="#2c2c33" stroke-width="2"/><rect x="17" y="18" width="28" height="44" rx="12" fill="none" stroke="#3a3a42" stroke-width="3"/><circle cx="31" cy="76" r="6" fill="#3a3a42"/></g>
+        <g transform="translate(118,80)"><rect width="164" height="238" rx="44" fill="url(#bg2)" stroke="#3d3d44" stroke-width="2"/><circle cx="58" cy="60" r="42" fill="#08080a"/><circle cx="58" cy="60" r="36" fill="url(#lg)"/><circle cx="58" cy="60" r="36" fill="none" stroke="#44445a" stroke-width="3"/><circle cx="44" cy="46" r="9" fill="rgba(255,255,255,.75)"/><rect x="52" y="150" width="60" height="34" rx="17" fill="#16161b" stroke="#34343c" stroke-width="2"/><circle cx="82" cy="167" r="10" fill="#2b6bff"/><circle cx="82" cy="167" r="10" fill="none" stroke="rgba(120,160,255,.6)" stroke-width="2"><animate attributeName="r" values="10;13;10" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".8;0;.8" dur="2s" repeatCount="indefinite"/></circle></g>
+      </svg>
+    </div></div>
+    <div class="pinfo">
+      <span class="pe">Ubernatural Gear — Field Series</span>
+      <div class="pt">ORBIT NANO<br>BODY CAM</div>
+      <p class="ps">Ultra-compact wearable camera built for explorers. 1080P HD, magnetic lanyard mount, one-press recording & a pocket carry case — record every world you land on.</p>
+      <div class="sg">
+        <div class="sp"><b>Video</b><span>1080P HD 30fps</span></div><div class="sp"><b>Battery</b><span>150 min</span></div>
+        <div class="sp"><b>Weight</b><span>28 g</span></div><div class="sp"><b>Storage</b><span>128 GB</span></div>
+        <div class="sp"><b>Mounts</b><span>Lanyard, clip</span></div><div class="sp"><b>Extras</b><span>Remote + case</span></div>
+      </div>
+      <div class="buy"><span class="price">$49.99 <s>$79.99</s></span>
+        <div class="qty"><button id="qm">−</button><span id="qv">1</span><button id="qp">+</button></div>
+        <button class="buynow" id="add">Add to Cart</button></div>
+      <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.6"><b style="color:#7dffa8">● In stock</b> — free shipping</span>
+    </div>
+  </div>
+</section>
+<button class="cart-fab" id="cart-fab">🛒 Cart <span class="cc" id="cc">0</span></button>
+<aside class="drawer" id="drawer">
+  <h2>Your Cart</h2><div id="lines"></div>
+  <div class="ct"><span>Total</span><span id="total">$0.00</span></div>
+  <input id="ck-n" placeholder="Full name"><input id="ck-e" placeholder="Email" type="email"><input id="ck-a" placeholder="Address">
+  <button class="buynow" id="checkout">Place Order</button>
+  <button class="btn-pill" id="drawer-close" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)">Close</button>
+  <div class="ok" id="ok"><span class="big">🚀</span><b id="oid"></b><br>Order confirmed! Your Nano Cam is on the next shuttle.</div>
+</aside>
+<div class="toast" id="toast">Added ✓</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+var TAU=Math.PI*2;
+
+/* ================= PLANET DATABASE (Google-Earth style) ================= */
+var PLANETS=[
+ {key:'mercury',name:'Mercury',base:'#8c7f72',light:'#cabeb0',dark:'#463d34',craters:true,ring:0,glow:'160,150,140',
+  tag:'The swift messenger of the Sun.',
+  desc:'Mercury is the smallest planet and the closest to the Sun. It has almost no atmosphere, so it experiences the most extreme temperature swings of any planet — scorching by day, freezing by night.',
+  stats:{'Diameter':'4,879 km','Distance':'57.9M km','Day length':'59 Earth days','Year':'88 days','Gravity':'3.7 m/s²','Moons':'0'},
+  facts:['A year on Mercury (88 days) is shorter than its own day (176 days).','Despite being closest to the Sun, it is NOT the hottest planet.','Its surface is covered in craters like our Moon.']},
+ {key:'venus',name:'Venus',base:'#d9a441',light:'#f6e0a0',dark:'#8a5a1c',bands:true,ring:0,glow:'240,200,120',
+  tag:'Earth\u2019s hellish twin.',
+  desc:'Venus is similar in size to Earth but wrapped in a crushing atmosphere of carbon dioxide and clouds of sulfuric acid. A runaway greenhouse effect makes it the hottest planet in the Solar System.',
+  stats:{'Diameter':'12,104 km','Distance':'108.2M km','Day length':'243 Earth days','Year':'225 days','Gravity':'8.9 m/s²','Moons':'0'},
+  facts:['Venus spins backwards compared to most planets.','Its surface pressure would crush you like being 900m underwater.','A day on Venus is longer than its year.']},
+ {key:'earth',name:'Earth',base:'#2b6fb0',light:'#7ec8ff',dark:'#0a2f52',land:'#2f8f4e',ring:0,glow:'90,160,255',
+  tag:'The pale blue dot — our home.',
+  desc:'Earth is the only known planet to harbour life. With liquid water oceans, a protective atmosphere and a stable climate, it sits perfectly in the Sun\u2019s habitable zone.',
+  stats:{'Diameter':'12,742 km','Distance':'149.6M km','Day length':'24 hours','Year':'365.25 days','Gravity':'9.8 m/s²','Moons':'1'},
+  facts:['71% of Earth\u2019s surface is covered by water.','Earth is the densest planet in the Solar System.','Its magnetic field shields us from deadly solar radiation.']},
+ {key:'mars',name:'Mars',base:'#b5502f',light:'#e08a5c',dark:'#5c2110',craters:true,caps:true,ring:0,glow:'230,120,80',
+  tag:'The Red Planet — humanity\u2019s next frontier.',
+  desc:'Mars is a cold desert world of red iron-oxide dust, giant volcanoes and polar ice caps. Evidence shows it once had rivers and lakes, making it a prime target in the search for past life.',
+  stats:{'Diameter':'6,779 km','Distance':'228M km','Day length':'24.6 hours','Year':'687 days','Gravity':'3.7 m/s²','Moons':'2'},
+  facts:['Home to Olympus Mons — the tallest volcano in the Solar System.','It has the largest dust storms, sometimes covering the whole planet.','A day on Mars is very close to an Earth day.']},
+ {key:'jupiter',name:'Jupiter',base:'#c9a074',light:'#efd6ac',dark:'#7a5330',bands:true,spot:true,ring:0,glow:'220,180,130',
+  tag:'The giant king of the planets.',
+  desc:'Jupiter is a colossal gas giant made mostly of hydrogen and helium. Its swirling bands and the famous Great Red Spot — a storm bigger than Earth — have raged for centuries.',
+  stats:{'Diameter':'139,820 km','Distance':'778M km','Day length':'9.9 hours','Year':'12 years','Gravity':'24.8 m/s²','Moons':'95+'},
+  facts:['You could fit over 1,300 Earths inside Jupiter.','The Great Red Spot is a storm that has lasted 350+ years.','It has the shortest day of any planet.']},
+ {key:'saturn',name:'Saturn',base:'#d8c48a',light:'#f4e7b8',dark:'#8f7a44',bands:true,ring:2.0,glow:'230,210,150',
+  tag:'The jewel of the Solar System.',
+  desc:'Saturn is famous for its spectacular ring system made of billions of chunks of ice and rock. Like Jupiter, it is a gas giant — so light it could float in a big enough bath of water.',
+  stats:{'Diameter':'116,460 km','Distance':'1.43B km','Day length':'10.7 hours','Year':'29 years','Gravity':'10.4 m/s²','Moons':'146+'},
+  facts:['Saturn\u2019s rings are 280,000 km wide but often under 1 km thick.','It is the least dense planet — it would float in water.','Its moon Titan has lakes of liquid methane.']},
+ {key:'uranus',name:'Uranus',base:'#8fd6db',light:'#c8f2f5',dark:'#3e8a90',bands:true,ring:1.6,glow:'150,230,235',
+  tag:'The tilted ice giant.',
+  desc:'Uranus is an ice giant with a pale blue-green colour from methane in its atmosphere. Uniquely, it is tipped completely on its side, rolling around the Sun like a ball.',
+  stats:{'Diameter':'50,724 km','Distance':'2.87B km','Day length':'17 hours','Year':'84 years','Gravity':'8.7 m/s²','Moons':'28'},
+  facts:['Uranus rotates on its side with a 98° tilt.','It was the first planet discovered with a telescope (1781).','It has the coldest atmosphere of any planet (-224°C).']},
+ {key:'neptune',name:'Neptune',base:'#2f5cd0',light:'#6f96ff',dark:'#12296e',bands:true,spot:true,ring:0,glow:'90,130,255',
+  tag:'The windy blue giant on the edge.',
+  desc:'Neptune is the farthest planet from the Sun — a deep blue ice giant with the fastest winds in the Solar System. It was the first planet predicted by mathematics before being seen.',
+  stats:{'Diameter':'49,244 km','Distance':'4.5B km','Day length':'16 hours','Year':'165 years','Gravity':'11.2 m/s²','Moons':'16'},
+  facts:['Winds on Neptune reach 2,100 km/h — supersonic!','It was found by math before it was ever seen.','One Neptune year lasts 165 Earth years.']}
+];
+function idx(k){for(var i=0;i<PLANETS.length;i++)if(PLANETS[i].key===k)return i;return 0;}
+var current='mercury', viewing=false, busy=false;
+
+/* ================= NOISE ================= */
+var perm=[];for(var i=0;i<512;i++)perm[i]=Math.floor(Math.random()*256);
+function noise(x,y){var xi=Math.floor(x)&255,yi=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);
+ function fd(t){return t*t*t*(t*(t*6-15)+10)}function lp(a,b,t){return a+(b-a)*t}
+ function g(h,x,y){var u=h<2?x:y,v=h<2?y:x;return((h&1)?-u:u)+((h&2)?-v:v)}
+ var u=fd(xf),v=fd(yf),aa=perm[(perm[xi]+yi)&255],ab=perm[(perm[xi]+yi+1)&255],ba=perm[(perm[xi+1]+yi)&255],bb=perm[(perm[xi+1]+yi+1)&255];
+ return(lp(lp(g(aa&3,xf,yf),g(ba&3,xf-1,yf),u),lp(g(ab&3,xf,yf-1),g(bb&3,xf-1,yf-1),u),v)+1)/2;}
+function fbm(x,y){var v=0,a=.5,f=1;for(var o=0;o<4;o++){v+=noise(x*f,y*f)*a;f*=2;a*=.5;}return v;}
+function lc(a,b,t){return Math.max(0,Math.min(255,a+(b-a)*Math.max(0,Math.min(1,t))))}
+
+/* ================= TEXTURE BUILDER ================= */
+var texCache={};
+function buildTex(p){
+  var W=400,H=200,cv=document.createElement('canvas');cv.width=W;cv.height=H;var c=cv.getContext('2d'),img=c.createImageData(W,H),d=img.data;
+  var pa=parseInt(p.base.slice(1),16),pl=parseInt(p.light.slice(1),16),pd=parseInt(p.dark.slice(1),16),lg=p.land?parseInt(p.land.slice(1),16):null;
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+    var lat=(y/H-.5)*Math.PI,u=x/W*6,v=y/H*3,n,col;
+    if(p.bands){n=fbm(u*.7,v*7)*.35+Math.sin(v*11+fbm(u,v)*3)*.32+.5;}else{n=fbm(u*1.6,v*1.6);}
+    n=Math.max(0,Math.min(1,n));
+    if(lg!==null){
+      if(n>.5){var lt=(n-.5)/.5;col=[((lg>>16)&255)*(.55+lt*.6),((lg>>8)&255)*(.55+lt*.6),(lg&255)*(.55+lt*.6)];if(n>.8)col=[215,208,196];}
+      else{var ot=n/.5;col=[((pa>>16)&255)*(.45+ot*.75),((pa>>8)&255)*(.45+ot*.75),(pa&255)*(.5+ot*.7)];}
+    }else{
+      var r=lc((pd>>16)&255,(pa>>16)&255,n),g2=lc((pd>>8)&255,(pa>>8)&255,n),b=lc(pd&255,pa&255,n);
+      r=lc(r,(pl>>16)&255,Math.max(0,n-.62)*1.6);g2=lc(g2,(pl>>8)&255,Math.max(0,n-.62)*1.6);b=lc(b,pl&255,Math.max(0,n-.62)*1.6);col=[r,g2,b];
+    }
+    if(p.craters){var cn=fbm(u*9,v*9);if(cn>.73){var f=(cn-.73)*2.2;col=[col[0]*(1-f*.4),col[1]*(1-f*.4),col[2]*(1-f*.4)];}}
+    if(p.caps&&Math.abs(lat)>1.18)col=[222,216,210];
+    var ii=(y*W+x)*4;d[ii]=col[0];d[ii+1]=col[1];d[ii+2]=col[2];d[ii+3]=255;
+  }
+  c.putImageData(img,0,0);return {cv:cv,ctx:c,data:c.getImageData(0,0,W,H).data,W:W,H:H};
+}
+function getTex(p){if(!texCache[p.key])texCache[p.key]=buildTex(p);return texCache[p.key];}
+
+/* ================= SPHERE RENDER ================= */
+function drawSphere(c,cx,cy,R,p,rot,alpha){
+  R=Math.round(R);if(R<2)return;
+  var t=getTex(p),src=t.data,tw=t.W,th=t.H;
+  var buf=c.createImageData(R*2,R*2),bd=buf.data,lx=-.5,ly=-.42,lz=.76;
+  for(var py=0;py<R*2;py++)for(var px=0;px<R*2;px++){
+    var nx=(px-R)/R,ny=(py-R)/R,d2=nx*nx+ny*ny,bi=(py*R*2+px)*4;
+    if(d2>1){bd[bi+3]=0;continue;}
+    var nz=Math.sqrt(1-d2),lon=Math.atan2(nx,nz)+rot,ltt=Math.asin(ny);
+    var uu=((lon/TAU)%1+1)%1,vv=(ltt/Math.PI+.5),tx=(uu*tw)|0,ty=(vv*th)|0,si=(ty*tw+tx)*4;
+    var light=Math.max(.07,nx*lx+ny*ly+nz*lz),rim=Math.pow(1-nz,3)*.55;
+    bd[bi]=Math.min(255,src[si]*light+rim*120);
+    bd[bi+1]=Math.min(255,src[si+1]*light+rim*150);
+    bd[bi+2]=Math.min(255,src[si+2]*light+rim*210);
+    bd[bi+3]=255*alpha;
+  }
+  c.putImageData(buf,Math.round(cx-R),Math.round(cy-R));
+  var g=c.createRadialGradient(cx,cy,R*.92,cx,cy,R*1.4);
+  g.addColorStop(0,'rgba('+p.glow+',0)');g.addColorStop(.55,'rgba('+p.glow+','+(.28*alpha)+')');g.addColorStop(1,'rgba('+p.glow+',0)');
+  c.globalAlpha=alpha;c.fillStyle=g;c.beginPath();c.arc(cx,cy,R*1.4,0,TAU);c.fill();c.globalAlpha=1;
+}
+function ringPart(c,cx,cy,R,p,alpha,half){
+  c.save();c.translate(cx,cy);c.rotate(-.44);c.scale(1,.32);c.globalAlpha=alpha;
+  for(var i=0;i<44;i++){var rr=R*(1.28+i*p.ring*.016);c.strokeStyle='rgba('+ (i%3?'244,231,184':'216,196,138')+','+(.05+(i%2?.13:.05))+')';c.lineWidth=R*.038;c.beginPath();
+    if(half==='back')c.arc(0,0,rr,Math.PI,TAU);else c.arc(0,0,rr,0,Math.PI);c.stroke();}
+  c.restore();c.globalAlpha=1;
+}
+function drawFull(c,cx,cy,R,p,rot,alpha){
+  if(p.ring)ringPart(c,cx,cy,R,p,alpha,'back');
+  drawSphere(c,cx,cy,R,p,rot,alpha);
+  if(p.ring)ringPart(c,cx,cy,R,p,alpha,'front');
+}
+
+/* ================= STARFIELD ================= */
+var stars=[];for(var s=0;s<280;s++)stars.push({x:Math.random(),y:Math.random(),r:Math.random()*1.3+.2,t:Math.random()*6});
+var spc=$('#space'),spcx=spc.getContext('2d');
+function drawBg(now){
+  var g=spcx.createRadialGradient(innerWidth*.7,innerHeight*.3,80,innerWidth*.5,innerHeight*.55,innerWidth);
+  g.addColorStop(0,'#0a1030');g.addColorStop(.5,'#050512');g.addColorStop(1,'#020208');
+  spcx.fillStyle=g;spcx.fillRect(0,0,innerWidth,innerHeight);
+  spcx.fillStyle='#fff';for(var i=0;i<stars.length;i++){var st=stars[i];spcx.globalAlpha=.25+.6*Math.abs(Math.sin(now/1400+st.t));spcx.beginPath();spcx.arc(st.x*innerWidth,st.y*innerHeight,st.r,0,TAU);spcx.fill();}
+  spcx.globalAlpha=1;
+}
+
+/* ================= MAIN LOOP ================= */
+var plc=$('#planet'),pcx=plc.getContext('2d'),spin=0,lastT=performance.now(),
+tgtX=0,tgtY=0,tiltX=0,tiltY=0,zoom=0,zoomTgt=0;
+function loop(now){
+  var dt=Math.min(now-lastT,50);lastT=now;
+  spin+=dt*.00016;
+  tiltX+=(tgtX-tiltX)*Math.min(1,dt*.006);tiltY+=(tgtY-tiltY)*Math.min(1,dt*.006);
+  zoom+=(zoomTgt-zoom)*Math.min(1,dt*.004);
+  drawBg(now);
+  pcx.clearRect(0,0,innerWidth,innerHeight);
+  var p=PLANETS[idx(current)];
+  var baseR=Math.min(innerWidth,innerHeight)*0.2;
+  // zoom=0 -> normal center; zoom=1 -> HUGE, offset right so panel text on left is clear
+  var R=baseR*(1+zoom*3.2);
+  var cx=innerWidth*0.5+tiltY*3 + zoom*innerWidth*0.22;
+  var cy=innerHeight*0.5+tiltX*3;
+  drawFull(pcx,cx,cy,R,p,spin,1);
+  requestAnimationFrame(loop);
+}
+
+/* ================= UI ================= */
+function renderSidebar(){
+  var sb=$('#sidebar');sb.innerHTML='';
+  PLANETS.forEach(function(p){
+    var el=document.createElement('div');el.className='p-item'+(p.key===current?' active':'');el.style.color=p.light;
+    el.innerHTML='<span class="mini" style="background:radial-gradient(circle at 35% 30%,'+p.light+','+p.base+' 60%,'+p.dark+')"></span><span style="color:#fff">'+p.name+'</span>';
+    el.onclick=function(){selectPlanet(p.key);};
+    sb.appendChild(el);
+  });
+}
+function selectPlanet(key){ // just switches which planet is shown in center (not zoomed)
+  if(viewing){openPlanet(key);return;}
+  current=key;$('#hint-name').textContent=PLANETS[idx(key)].name.toUpperCase();renderSidebar();
+}
+function openPlanet(key){
+  if(busy)return;busy=true;
+  current=key;renderSidebar();
+  viewing=true;document.body.classList.add('is-viewing');
+  zoomTgt=1;
+  fillPanel(PLANETS[idx(key)]);
+  $('#panel').classList.add('is-open');
+  setTimeout(function(){busy=false;},400);
+}
+function closePlanet(){
+  if(busy)return;busy=true;
+  viewing=false;document.body.classList.remove('is-viewing');
+  zoomTgt=0;$('#panel').classList.remove('is-open');
+  $('#hint-name').textContent=PLANETS[idx(current)].name.toUpperCase();
+  setTimeout(function(){busy=false;},400);
+}
+function fillPanel(p){
+  var i=idx(p.key);
+  document.documentElement.style.setProperty('--pc',p.light);
+  $('#p-eyebrow').textContent='Planet '+String(i+1).padStart(2,'0')+' of 08';
+  $('#p-title').textContent=p.name.toUpperCase();
+  $('#p-tag').textContent=p.tag;
+  $('#p-desc').textContent=p.desc;
+  var st=$('#p-stats');st.innerHTML='';
+  for(var k in p.stats){var d=document.createElement('div');d.className='stat';d.innerHTML='<b>'+k+'</b><span>'+p.stats[k]+'</span>';st.appendChild(d);}
+  var fb=$('#p-facts');fb.innerHTML='';
+  p.facts.forEach(function(f){var r=document.createElement('div');r.className='fact-row';r.textContent=f;fb.appendChild(r);});
+  $('.panel-inner').scrollTop=0;
+}
+// planet canvas click = open current planet
+plc.addEventListener('click',function(){if(!viewing)openPlanet(current);});
+$('#hint-name').parentElement.style.cursor='pointer';
+$('#center-hint').addEventListener('click',function(){if(!viewing)openPlanet(current);});
+$('#p-back').onclick=closePlanet;
+$('#np-next').onclick=function(){var i=(idx(current)+1)%PLANETS.length;openPlanet(PLANETS[i].key);};
+$('#np-prev').onclick=function(){var i=(idx(current)-1+PLANETS.length)%PLANETS.length;openPlanet(PLANETS[i].key);};
+
+/* ================= TILT ================= */
+window.addEventListener('pointermove',function(e){if(e.pointerType==='touch'||viewing)return;tgtY=(e.clientX/innerWidth-.5)*30;tgtX=(e.clientY/innerHeight-.5)*-22;});
+document.addEventListener('pointerleave',function(){tgtX=0;tgtY=0;});
+
+/* ================= RESIZE ================= */
+function resize(){var d=Math.min(devicePixelRatio||1,2);[spc,plc].forEach(function(c){c.width=innerWidth*d;c.height=innerHeight*d;c.style.width=innerWidth+'px';c.style.height=innerHeight+'px';c.getContext('2d').setTransform(d,0,0,d,0,0);});}
+window.addEventListener('resize',resize);
+
+/* ================= PRELOADER ================= */
+function preload(){
+  var cv=$('#pl-canvas'),c=cv.getContext('2d'),val=$('#pl-val'),cnt=$('#pl-count'),logo=$('#pl-logo'),pre=$('#preloader'),start=performance.now(),DUR=3000,done=false;
+  function sz(){cv.width=innerWidth;cv.height=innerHeight;}sz();
+  function step(now){if(done)return;var t=Math.min((now-start)/DUR,1);val.textContent=Math.round(t*100);
+    c.fillStyle='#000';c.fillRect(0,0,innerWidth,innerHeight);c.fillStyle='#fff';
+    for(var i=0;i<140;i++){var a=i*.45,dd=((t*innerWidth*1.6+i*30)%innerWidth),x=innerWidth/2+Math.cos(a)*dd,y=innerHeight/2+Math.sin(a)*dd;c.globalAlpha=.4;c.fillRect(x,y,1.6,1.6);}c.globalAlpha=1;
+    var R=innerHeight*(.05+t*.26);drawFull(c,innerWidth/2,innerHeight/2,R,PLANETS[0],now*.0004,1);
+    if(t>=1){fin();return;}requestAnimationFrame(step);}
+  function fin(){if(done)return;done=true;val.textContent='100';cnt.classList.add('is-leaving');logo.classList.add('is-docked');pre.classList.add('is-gone');document.body.classList.add('ready');
+    setTimeout(function(){cnt.remove();pre.remove();},1100);setTimeout(function(){logo.classList.add('is-settled')},2000);}
+  window.addEventListener('resize',sz);requestAnimationFrame(step);
+}
+
+/* ================= CURSOR ================= */
+var cur=$('.cursor'),mx=0,my=0,ox=0,oy=0,seen=false;
+document.addEventListener('pointermove',function(e){if(e.pointerType==='touch')return;mx=e.clientX;my=e.clientY;if(!seen){seen=true;cur.classList.add('on');}});
+document.addEventListener('mouseleave',function(){cur.classList.remove('on');seen=false;});
+plc.addEventListener('pointerenter',function(){if(!viewing)cur.classList.add('enter')});
+plc.addEventListener('pointerleave',function(){cur.classList.remove('enter')});
+(function cl(){ox+=(mx-ox)*.22;oy+=(my-oy)*.22;cur.style.transform='translate3d('+ox+'px,'+oy+'px,0)';requestAnimationFrame(cl);})();
+
+/* ================= SHOP ================= */
+var shop=$('#shop'),pcard=$('#pcard');
+$('#menu-btn').onclick=$('#nav-shop').onclick=function(e){e&&e.preventDefault();shop.classList.add('is-open');drawStars();};
+$('#shop-close').onclick=function(){shop.classList.remove('is-open')};
+var ptx=0,pty=0,px=0,py=0;
+shop.addEventListener('pointermove',function(e){var r=pcard.getBoundingClientRect();pty=((e.clientX-r.left)/r.width-.5)*24;ptx=((e.clientY-r.top)/r.height-.5)*-20;});
+shop.addEventListener('pointerleave',function(){ptx=0;pty=0;});
+(function cardLoop(){px+=(ptx-px)*.08;py+=(pty-py)*.08;var f=Math.sin(performance.now()/1400)*6;pcard.style.transform='rotateX('+px+'deg) rotateY('+py+'deg) translateY('+f+'px)';requestAnimationFrame(cardLoop);})();
+var stC=$('#shop-stars'),stx=stC.getContext('2d'),sp=null;
+function drawStars(){stC.width=innerWidth;stC.height=innerHeight;if(!sp){sp=[];for(var i=0;i<150;i++)sp.push([Math.random(),Math.random(),Math.random()*1.4+.3]);}stx.fillStyle='#fff';sp.forEach(function(p){stx.globalAlpha=p[2]*.6;stx.beginPath();stx.arc(p[0]*innerWidth,p[1]*innerHeight,p[2],0,TAU);stx.fill();});}
+window.addEventListener('resize',function(){if(shop.classList.contains('is-open'))drawStars()});
+
+/* ================= CART ================= */
+var PRICE=49.99,qty=1;
+function lc2(){try{return JSON.parse(localStorage.getItem('un_cart')||'[]')}catch(e){return[]}}
+function sc(c){localStorage.setItem('un_cart',JSON.stringify(c))}
+$('#qp').onclick=function(){qty=Math.min(qty+1,9);$('#qv').textContent=qty};
+$('#qm').onclick=function(){qty=Math.max(qty-1,1);$('#qv').textContent=qty};
+$('#add').onclick=function(){var c=lc2(),l=c.find(function(x){return x.id==='nano'});l?l.qty+=qty:c.push({id:'nano',name:'Orbit Nano Body Cam',price:PRICE,qty:qty});sc(c);rc();toast('Added to cart ✓');$('#drawer').classList.add('on');};
+function rc(){var c=lc2(),n=c.reduce(function(a,l){return a+l.qty},0),tot=c.reduce(function(a,l){return a+l.qty*l.price},0);$('#cc').textContent=n;$('#cart-fab').classList.toggle('on',n>0);$('#total').textContent='$'+tot.toFixed(2);var b=$('#lines');b.innerHTML='';c.forEach(function(l,i){var d=document.createElement('div');d.className='cl';d.innerHTML='<span>'+l.name+' × '+l.qty+'</span><span>$'+(l.price*l.qty).toFixed(2)+' <button data-i="'+i+'" style="border:0;background:transparent;color:#f66;font-size:16px">✕</button></span>';b.appendChild(d);});b.querySelectorAll('button').forEach(function(x){x.onclick=function(){var c2=lc2();c2.splice(+x.dataset.i,1);sc(c2);rc();};});}
+$('#cart-fab').onclick=function(){$('#drawer').classList.add('on')};
+$('#drawer-close').onclick=function(){$('#drawer').classList.remove('on');$('#ok').classList.remove('on')};
+$('#checkout').onclick=function(){var c=lc2();if(!c.length)return toast('Cart is empty');var n=$('#ck-n').value.trim(),e=$('#ck-e').value.trim(),a=$('#ck-a').value.trim();if(!n||!e||!a)return toast('Please fill all fields');var o={id:'UN-'+Date.now().toString(36).toUpperCase(),name:n,email:e,addr:a,items:c,total:c.reduce(function(x,l){return x+l.qty*l.price},0)};var arr=[];try{arr=JSON.parse(localStorage.getItem('un_orders')||'[]')}catch(x){}arr.push(o);localStorage.setItem('un_orders',JSON.stringify(arr));sc([]);rc();$('#oid').textContent='Order '+o.id;$('#ok').classList.add('on');};
+var tt;function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2200);}
+rc();
+
+/* ================= BOOT ================= */
+resize();renderSidebar();$('#hint-name').textContent=PLANETS[0].name.toUpperCase();
+requestAnimationFrame(loop);preload();
+})();
+</script>
+</body>
+</html>
